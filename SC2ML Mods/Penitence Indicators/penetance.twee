@@ -1,0 +1,143 @@
+:: GraceIndicators [widget]
+<<widget "grace_indicator">>
+    <<silently>>
+        <<set _action to $args[0]>>
+        <<set _attendant to $attendant>>
+        <<set _positive to []>>
+        <<set _negative to []>>
+        <<set _neutral to "">>
+
+        <<switch _action>>
+            <<case "forgive">>
+                <<switch _attendant>>
+                    /* Negative Outcomes */
+                    <<case "corrupt_1" "corrupt_2" "corrupt_4" "corrupt_5" "corrupt_5_fake" "sinner_criminal_2" "sinner_generic_repent" "sinner_generic_rapist" "temple_4" "temple_5" "temple_6" "temple_generic" "sinner_panty_thief" "punished_corrupt">>
+                        <<run _negative.push("-Grace")>>
+                        <<if _attendant is "temple_6">><<run _positive.push("-Stress")>><</if>>
+                    <<case "corrupt_8" "punished_2">>
+                        <<run _negative.push("+Stress")>>
+                    /* Positive Outcomes */
+                    <<case "corrupt_3" "corrupt_6" "corrupt_7">>
+                        <<run _negative.push("-Grace", "-Awareness")>><<run _positive.push("-Trauma")>>
+                    <<case "corrupt_9">>
+                        <<run _positive.push("+Awareness")>>
+                    <<case "sinner_1" "sinner_2" "sinner_3" "sinner_4" "sinner_5" "sinner_8" "sinner_9" "sinner_10" "sinner_generic_forgive" "no_sin_generic" "winter">>
+                        <<run _positive.push("+Grace")>>
+                    <<case "sinner_orphan_1">>
+                        <<run _positive.push("+Grace", "+Hope")>>
+                    <<case "sinner_orphan_2">>
+                        <<run _positive.push("+Grace", "+Hope", "-Rebellion")>>
+                    <<case "sinner_pregnant">>
+                        <<run _positive.push("+Grace", "-Trauma")>>
+                    <<case "punished_1">>
+                        <<run _positive.push("+Grace", "-Stress")>>
+                    <<case "punished_3">>
+                        <<run _positive.push("-Stress")>>
+                    <<case "sydney_promised">>
+                        <<run _positive.push("+Grace", "+Arousal")>>
+                    <<case "sydney_romance">>
+                        <<set _neutral to '(Neutral)'>>
+                    <<case "sydney_love" "sydney_doubt">>
+                        <<run _positive.push("+Grace", "+Love")>>
+                    /* Neutral Outcomes */
+                    <<default>>
+                        <<set _neutral to '(Neutral)'>>
+                <</switch>>
+            <<case "repent">>
+                <<switch _attendant>>
+                    /* Negative Outcomes */
+                    <<case "corrupt_1" "corrupt_2" "corrupt_3" "corrupt_4" "corrupt_6" "corrupt_7">>
+                        <<run _negative.push("-Grace")>>
+                    <<case "punished_corrupt">>
+                        <<run _negative.push("-Grace", "+Awareness")>>
+                    <<case "no_sin_generic">>
+                        <<run _negative.push("-Grace")>><<run _positive.push("-Stress", "-Trauma")>>
+                    <<case "sinner_orphan_1">>
+                        <<run _negative.push("-Hope")>><<run _positive.push("+Grace", "+Rebellion")>>
+                    <<case "sydney_love">>
+                        <<run _negative.push("-Love")>><<run _positive.push("+Grace")>>
+                    <<case "corrupt_8" "punished_1" "punished_3">>
+                        <<run _negative.push("+Stress")>>
+                    <<case "punished_2">>
+                        <<run _negative.push("+Stress", "+Awareness")>>
+                    /* Positive Outcomes */
+                    <<case "corrupt_5_fake" "sinner_1" "sinner_2" "sinner_3" "sinner_4" "sinner_5" "sinner_6" "sinner_7" "sinner_8" "sinner_9" "sinner_10" "sinner_criminal_1" "sinner_criminal_2" "sinner_panty_thief" "sinner_pregnant" "sinner_generic_repent" "temple_1" "temple_2" "temple_3" "temple_generic" "winter">>
+                        <<run _positive.push("+Grace")>>
+                    <<case "sydney_promised" "sydney_romance" "sydney_doubt">>
+                        <<run _positive.push("+Grace")>>
+                    <<case "corrupt_9">>
+                        <<run _positive.push("+Awareness")>>
+                    /* Neutral Outcomes */
+                    <<default>>
+                        <<set _neutral to '(Neutral)'>>
+                <</switch>>
+            <<case "contrition">>
+                <<switch _attendant>>
+                    /* Negative Outcomes */
+                    <<case "sinner_1" "sinner_2" "sinner_6" "sinner_7" "sinner_8" "sinner_9" "sinner_10" "sinner_criminal_1" "sinner_criminal_2" "sinner_panty_thief" "sinner_pregnant" "sinner_generic_forgive" "sinner_generic_repent" "temple_1" "temple_2" "temple_3" "temple_4" "temple_5" "temple_6" "temple_generic" "punished_1" "punished_3" "sydney_promised" "sydney_romance" "sydney_love" "sydney_doubt" "winter">>
+                        <<run _negative.push("-Grace")>>
+                    <<case "sinner_orphan_1" "sinner_orphan_2">>
+                        <<run _negative.push("-Grace", "-Hope")>>
+                    <<case "no_sin_generic">>
+                        <<run _negative.push("-Grace Severe")>>
+                    <<case "punished_2" "corrupt_8">>
+                        <<run _negative.push("+Stress")>>
+                    /* Positive Outcomes */
+                    <<case "corrupt_1" "corrupt_2" "corrupt_3" "corrupt_4" "corrupt_5" "corrupt_7" "corrupt_9" "sinner_generic_rapist">>
+                        <<run _positive.push("+Grace")>>
+                    /* Neutral Outcomes */
+                    <<default>>
+                        <<set _neutral to '(Neutral)'>>
+                <</switch>>
+            <<case "purify">> /* Ring the bell */
+                <<switch _attendant>>
+                    /* Negative Outcomes */
+                    <<case "temple_1" "temple_2" "temple_3" "temple_generic">>
+                        <<run _negative.push("-Grace Severe", "+Stress")>><<run _positive.push("+Control")>>
+                    <<case "punished_1">>
+                        <<run _negative.push("-Grace", "+Trauma")>>
+                    <<case "punished_2">>
+                        <<run _negative.push("-Grace", "+Stress", "+Trauma")>>
+                    <<case "punished_corrupt">>
+                         <<run _negative.push("+Stress")>>
+                    /* Positive Outcomes */
+                    <<case "corrupt_4" "temple_4" "temple_5">>
+                        <<run _positive.push("+Grace")>>
+                    <<case "temple_6">>
+                        <<run _positive.push("+Grace")>><<run _negative.push("+Stress", "+Trauma")>>
+                    <<case "punished_3">>
+                        <<run _positive.push("+Grace")>><<run _negative.push("+Stress", "+Trauma")>>
+                <</switch>>
+            <<case "purge">>
+                <<switch _attendant>>
+                    /* Accepted - Positive Outcome */
+                    <<case "corrupt_1" "corrupt_2" "corrupt_3" "corrupt_4" "corrupt_5" "corrupt_6" "corrupt_7" "corrupt_8" "corrupt_9" "punished_corrupt">>
+                        <<set _neutral to '(Accepted)'>>
+                        <<run _positive.push("+Grace")>>
+                    /* Accepted - Negative Outcome */
+                    <<case "sinner_2" "sinner_3" "sinner_10" "sinner_generic_repent" "sinner_generic_rapist" "punished_1" "corrupt_5_fake">>
+                        <<set _neutral to '(Accepted)'>>
+                        <<run _negative.push("-Grace Severe")>>
+                    /* Rejected - Negative Outcome */
+                    <<case "sinner_1" "sinner_4" "sinner_5" "sinner_6" "sinner_7" "sinner_8" "sinner_9" "sinner_criminal_1" "sinner_criminal_2" "sinner_orphan_1" "sinner_orphan_2" "sinner_panty_thief" "sinner_pregnant" "sinner_generic_forgive" "no_sin_generic" "sydney_love" "sydney_promised" "sydney_romance" "sydney_doubt" "winter">>
+                        <<set _neutral to '(Rejected)'>>
+                        <<run _negative.push("-Grace")>>
+                    /* Rejected - Neutral Outcome */
+                    <<case "punished_2" "punished_3" "sinner_silent">>
+                        <<set _neutral to '(Rejected)'>>
+                <</switch>>
+        <</switch>>
+
+        <<set _outputText to "">>
+        <<if _positive.length > 0>>
+            <<set _outputText += ' <span class="green">(' + _positive.join(', ') + ')</span>'>>
+        <</if>>
+        <<if _negative.length > 0>>
+            <<set _outputText += ' <span class="red">(' + _negative.join(', ') + ')</span>'>>
+        <</if>>
+        <<if _neutral isnot "">>
+            <<set _outputText += ' <span class="blue">' + _neutral + '</span>'>>
+        <</if>>
+    <</silently>>
+    <<print _outputText>>
+<</widget>>
