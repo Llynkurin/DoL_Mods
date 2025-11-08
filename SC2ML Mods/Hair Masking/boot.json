@@ -1,0 +1,83 @@
+{
+    "name": "HairGradientPatterns",
+    "version": "4.4.0",
+    "nickName": "HGP_colors",
+    "styleFileList": [
+        "HGP_styles.css"
+    ],
+    "scriptFileList": [
+        "scripts/HGP_main.js",
+        "scripts/HGP_colors.js"
+    ],
+    "tweeFileList": [
+        "HGP_ui_widgets.twee"
+    ],
+    "imgFileList": [],
+    "addonPlugin": [
+        {
+            "modName": "ReplacePatcher",
+            "addonName": "ReplacePatcherAddon",
+            "modVersion": "^1.0.0",
+            "params": {
+                "js": [
+                    {
+                        "fileName": "canvasmodel-main.js",
+                        "from": "function createHairColourGradient(",
+                        "to": "window.createHairColourGradient_ORIGINAL = function createHairColourGradient("
+                    },
+                    {
+                        "fileName": "canvasmodel-main.js",
+                        "from": "options.filters.hair = createHairColourGradient(",
+                        "to": "options.filters.hair = window.HGP_createHairColourGradient("
+                    },
+                    {
+                        "fileName": "canvasmodel-main.js",
+                        "from": "options.filters.hair_fringe = createHairColourGradient(",
+                        "to": "options.filters.hair_fringe = window.HGP_createHairColourGradient("
+                    }
+                ]
+            }
+        },
+        {
+            "modName": "TweeReplacer",
+            "addonName": "TweeReplacerAddon",
+            "modVersion": ">=1.0.0",
+            "params": [
+                {
+                    "passage": "Hairdressers Widgets",
+                    "findRegex": "<<option \"Low Ombré\" \"low-ombre\">>[\\s\\S]*?<<option \"Face-framing highlights\" \"face-frame\">>",
+                    "replaceFile": "hairoptions.txt",
+                    "isRegex": true
+                },
+                {
+                    "passage": "Hairdressers Widgets",
+                    "findRegex": "<<dyeSwatch \\$dyeOption>>",
+                    "replace": "<<hgpClickableSwatch $dyeOption>>",
+                    "isRegex": false
+                },
+                {
+                    "passage": "Hairdressers Widgets",
+                    "findRegex": "<<dyeSwatch \\$twoToneDyeOption1>>",
+                    "replace": "<<hgpClickableSwatch $twoToneDyeOption1>>",
+                    "isRegex": false
+                },
+                {
+                    "passage": "Hairdressers Widgets",
+                    "findRegex": "<<dyeSwatch \\$twoToneDyeOption2>>",
+                    "replace": "<<hgpClickableSwatch $twoToneDyeOption2>>",
+                    "isRegex": false
+                }
+            ]
+        }
+    ],
+    "dependenceInfo": [
+        {
+            "modName": "ReplacePatcher",
+            "version": "^1.0.0"
+        },
+        {
+            "modName": "TweeReplacer",
+            "version": ">=1.0.0"
+        }
+    ]
+}
