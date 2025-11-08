@@ -454,7 +454,7 @@
             if (!loader) {
                 loader = document.createElement('div');
                 loader.id = 'dollynk-loader';
-                loader.innerHTML = `<div class="loader-content"><div class="loader-title">DoLlynk v12.2</div><div class="loader-status"></div></div>`;
+                loader.innerHTML = `<div class="loader-content"><div class="loader-title">DoLlynk</div><div class="loader-status"></div></div>`;
                 document.documentElement.appendChild(loader);
             }
             loader.querySelector('.loader-status').textContent = text;
@@ -672,35 +672,39 @@
             if (!fullName || !code) return alert('Name and code required');
 
             const isBoot = /boot\.json5?$/i.test(fullName);
-            const newOrder = state.mods.length;
 
             if (state.editingId) {
-                const originalMod = state.mods.find(m => m.id === state.editingId);
-                if (!originalMod) { UI.resetForm(); return; }
-                const groupName = originalMod.groupName || fullName.replace(/\/boot\.json5?$/i, '');
-                state.mods = state.mods.filter(m => m.groupName !== groupName);
+                const modToUpdate = state.mods.find(m => m.id === state.editingId);
+                if (!modToUpdate) { UI.resetForm(); return; }
 
-                let newMods = [];
                 if (isBoot) {
-                    console.log(`[DoLlynk] Re-compiling '${groupName}' from edited boot.json...`);
+                    console.log(`[DoLlynk] Re-compiling from edited boot.json...`);
+                    const groupName = fullName.substring(0, fullName.lastIndexOf('/')) || fullName.replace(/boot\.json5?$/i, '');
                     const compiled = await FileHandler.compileBootData(code, groupName);
-                    if (compiled) newMods.push(compiled);
-                } else {
-                    const { type, name } = this._getTypeAndName(fullName.split('/').pop());
-                    const newGroupName = fullName.includes('/') ? fullName.substring(0, fullName.lastIndexOf('/')) : null;
-                    newMods.push({ name, groupName: newGroupName, type, code, earlyLoad });
-                }
-                newMods.forEach(mod => state.mods.push({ id: crypto.randomUUID(), ...mod, enabled: true, order: newOrder }));
 
+                    // INFO: Remove the old mod, then add the new compiled version.
+                    state.mods = state.mods.filter(m => m.id !== state.editingId);
+                    if (compiled) {
+                        state.mods.push({ id: crypto.randomUUID(), ...compiled, enabled: true, order: state.mods.length });
+                    } else {
+                         alert('boot.json did not produce any patch files. The original file was deleted. Please re-add if this was a mistake.');
+                    }
+                } else {
+                    // INFO: Standard file update. Non-destructive to other files in the group.
+                    const { type, name } = this._getTypeAndName(fullName.split('/').pop());
+                    const groupName = fullName.includes('/') ? fullName.substring(0, fullName.lastIndexOf('/')) : null;
+                    Object.assign(modToUpdate, { name, groupName, type, code, earlyLoad });
+                }
             } else {
+                // INFO: Add a new mod.
                 const groupName = fullName.includes('/') ? fullName.substring(0, fullName.lastIndexOf('/')) : null;
                 if (isBoot) {
                     const compiled = await FileHandler.compileBootData(code, groupName);
-                    if (compiled) state.mods.push({ id: crypto.randomUUID(), ...compiled, enabled: true, order: newOrder });
+                    if (compiled) state.mods.push({ id: crypto.randomUUID(), ...compiled, enabled: true, order: state.mods.length });
                 } else {
                     const { type, name } = this._getTypeAndName(fullName.split('/').pop());
                     if (!type) return alert('Invalid file extension.');
-                    state.mods.push({ id: crypto.randomUUID(), name, groupName, type, code, earlyLoad, enabled: true, order: newOrder });
+                    state.mods.push({ id: crypto.randomUUID(), name, groupName, type, code, earlyLoad, enabled: true, order: state.mods.length });
                 }
             }
 
@@ -764,11 +768,25 @@
         },
         _getTypeAndName(fileName) {
             let type, name = fileName;
-            if (/\.twee(\.txt)?$/i.test(fileName)) { type = 'twee'; name = fileName.replace(/\.twee(\.txt)?$/i, ''); }
-            else if (/\.js$/i.test(fileName)) { type = 'js'; name = fileName.replace(/\.js$/i, ''); }
-            else if (/\.css$/i.test(fileName)) { type = 'css'; name = fileName.replace(/\.css$/i, ''); }
-            else if (/\.json5?$/i.test(fileName)) { type = 'unified-patch'; name = fileName.replace(/\.json5?$/i, ''); }
-            else if (/\.txt$/i.test(fileName)) { type = 'txt'; name = fileName.replace(/\.txt$/i, ''); }
+            if (/\.modpatch\.json5?$/i.test(fileName)) {
+                type = 'unified-patch';
+                name = fileName.replace(/\.modpatch\.json5?$/i, '');
+            } else if (/\.twee(\.txt)?$/i.test(fileName)) {
+                type = 'twee';
+                name = fileName.replace(/\.twee(\.txt)?$/i, '');
+            } else if (/\.js$/i.test(fileName)) {
+                type = 'js';
+                name = fileName.replace(/\.js$/i, '');
+            } else if (/\.css$/i.test(fileName)) {
+                type = 'css';
+                name = fileName.replace(/\.css$/i, '');
+            } else if (/\.json5?$/i.test(fileName)) {
+                type = 'unified-patch';
+                name = fileName.replace(/\.json5?$/i, '');
+            } else if (/\.txt$/i.test(fileName)) {
+                type = 'txt';
+                name = fileName.replace(/\.txt$/i, '');
+            }
             return { type, name };
         }
     };
@@ -880,7 +898,7 @@
                     } else if (addon.addonName === 'TweePrefixPostfixAddon' && params.widget) {
                         patches.push(...params.widget.map(p => ({ role: 'widget', name: p.widgetName, method: p.pos === 'front' ? 'prefix' : 'postfix', replace: `<<${p.widgetNamePrefix || p.widgetNamePostfix}>>` })));
                     } else if (addon.addonName === 'ReplacePatcherAddon') {
-                        if (params.js) patches.push(...params.js.map(p => ({ role: 'script', name: p.from.match(/function\s+([a-zA-Z0-9_]+)\s*\(/)?.[1], method: 'string', find: p.from, replace: p.to })));
+                        if (params.js) patches.push(...params.js.map(p => ({ role: 'script', name: p.from.match(/function\s+([a-zA-Z0_]+)\s*\(/)?.[1], method: 'string', find: p.from, replace: p.to })));
                         if (params.twee) patches.push(...params.twee.map(p => ({ role: 'passage', name: p.passageName, method: 'string', find: p.from, replace: p.to })));
                     }
                 }
