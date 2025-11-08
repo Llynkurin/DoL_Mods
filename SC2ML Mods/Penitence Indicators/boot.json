@@ -1,0 +1,55 @@
+{
+    "name": "PenitentIndicators",
+    "version": "1.1.0",
+    "styleFileList": [],
+    "scriptFileList": [],
+    "tweeFileList": [
+        "penetance.twee"
+    ],
+    "imgFileList": [],
+    "additionFile": [],
+    "dependenceInfo": [
+        {
+            "modName": "ModLoader",
+            "version": ">=2.60.1"
+        },
+        {
+            "modName": "TweeReplacer",
+            "version": ">=1.6.0"
+        }
+    ],
+    "addonPlugin": [
+        {
+            "modName": "TweeReplacer",
+            "addonName": "TweeReplacerAddon",
+            "modVersion": ">=1.6.0",
+            "params": [
+                {
+                    "passage": "Temple Confess",
+                    "findString": "<<link [[Forgive|Temple Confess Forgive]]>><</link>>",
+                    "replace": "<<link [[Forgive|Temple Confess Forgive]]>><</link>><<grace_indicator 'forgive'>>"
+                },
+                {
+                    "passage": "Temple Confess",
+                    "findString": "<<link [[Repent|Temple Confess Repent]]>><</link>>",
+                    "replace": "<<link [[Repent|Temple Confess Repent]]>><</link>><<grace_indicator 'repent'>>"
+                },
+                {
+                    "passage": "Temple Confess",
+                    "findString": "<<link [[Contrition|Temple Confess Contrition]]>><</link>>",
+                    "replace": "<<link [[Contrition|Temple Confess Contrition]]>><</link>><<grace_indicator 'contrition'>>"
+                },
+                {
+                    "passage": "Temple Confess",
+                    "findString": "<<link [[Ring the bell|Temple Confess Purify]]>><</link>>",
+                    "replace": "<<link [[Ring the bell|Temple Confess Purify]]>><</link>><<grace_indicator 'purify'>>"
+                },
+                {
+                    "passage": "Temple Confess",
+                    "findString": "<<link [[Purge|Temple Confess Purge]]>><</link>>",
+                    "replace": "<<link [[Purge|Temple Confess Purge]]>><</link>><<grace_indicator 'purge'>>"
+                }
+            ]
+        }
+    ]
+}
