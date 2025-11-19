@@ -9,8 +9,10 @@ Latest Install links:
 
 ### Injector Mods
 Run on the DoLlynk Injector
-↪ Mods for the injector [Here](https://github.com/Llynkurin/DoL_Mods/tree/main/Injector_Mods)
+
+`↪` Mods for the injector [Here](https://github.com/Llynkurin/DoL_Mods/tree/main/Injector_Mods)
 
 ### SC2Modloader Mods
 Requires haveing a game file compiled with [Modloader](https://github.com/Lyoko-Jeremie/sugarcube-2-ModLoader)
-↪ Mods for the loader [Here](https://github.com/Llynkurin/DoL_Mods/tree/main/SC2ML%20Mods)
+
+`↪` Mods for the loader [Here](https://github.com/Llynkurin/DoL_Mods/tree/main/SC2ML%20Mods)
