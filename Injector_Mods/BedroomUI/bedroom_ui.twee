@@ -1,0 +1,101 @@
+:: Widget BedroomUI [widget]
+<<widget "BedroomUI">>
+    <<silently>>
+        /* ANCHOR: Fetch All Furniture States */
+        <<set _furniture to $furniture.bedroom>>
+        <<set _desk to Furniture.get('desk', $location)>>
+        <<set _chair to Furniture.get('chair', $location)>>
+        <<set _deco to Furniture.get('decoration', $location)>>
+        <<set _owlplush to Furniture.get('owlplushie', $location)>>
+        <<set _windowsill to Furniture.get('windowsill', $location)>>
+        <<set _posterObject to Furniture.get('poster', $location)>>
+        <<set _bed to Furniture.get('bed', $location)>>
+        <<set _wardrobe to Furniture.get('wardrobe', $location)>>
+        <<set _radio to Furniture.get('radio', $location)>>
+        <<set _plush to Furniture.get('plush', $location)>>
+        <<if $machineVaginalBought isnot undefined or $machineAnalBought isnot undefined>>
+        	<<set _sexMachine to 1>>
+        <</if>>
+
+        /* ANCHOR: Replicate Game's Logic for Poster */
+        <<set _posterIconName to "">>
+        <<if _posterObject>>
+            <<set _premadePoster to ["cowgirl", "cow_girl", "cat", "puppy"].includes(_posterObject.name)>>
+	        <<set _posterIconName to _premadePoster ? "poster_" + _posterObject.name : ['dol', 'degrees of lewdity'].some(e => _posterObject.name.toLowerCase().includes(e)) ? "poster_dol" : "poster">>
+        <</if>>
+    <</silently>>
+
+    /* ANCHOR: Scene Container */
+    <div id="bedroom-scene-container">
+
+        /* ANCHOR: Static & Interactive Visuals */
+        <div id="visual-window" class="visual-furniture" title="The view from your window."></div>
+
+        <<if _wardrobe>>
+            <img id="visual-wardrobe" class="visual-furniture interactive" data-passage="Wardrobe" title="Wardrobe" @src="'img/misc/icon/furniture/' + _wardrobe.iconFile + '.png'">
+        <</if>>
+        <<if _desk>>
+            <img id="visual-desk" class="visual-furniture" title="Desk" @src="'img/misc/icon/furniture/' + _desk.iconFile + '.png'">
+        <</if>>
+        <<if _chair>>
+            <img id="visual-chair" class="visual-furniture" title="Chair" @src="'img/misc/icon/furniture/' + _chair.iconFile + '.png'">
+        <</if>>
+        <<if _bed>>
+            <img id="visual-bed" class="visual-furniture interactive" data-passage="Bed" title="Bed" @src="'img/misc/icon/furniture/' + _bed.iconFile + '.png'">
+        <</if>>
+        <<if _posterIconName>>
+            <img id="visual-poster" class="visual-furniture" title="Poster" @src="'img/misc/icon/furniture/' + _posterIconName + '.png'">
+        <</if>>
+        <<if _windowsill>>
+             <img id="visual-windowsill-item" class="visual-furniture" @title="_windowsill.name" @src="'img/misc/icon/furniture/' + _windowsill.iconFile + '.png'">
+        <</if>>
+        <<if _radio>>
+             <img id="visual-radio" class="visual-furniture" title="Radio" @src="'img/misc/icon/furniture/' + _radio.iconFile + '.png'">
+        <</if>>
+
+        /* ANCHOR: Conditional Owl Plushie Logic */
+        <<if _owlplush>>
+            <<if $kylar_camera is 4>>
+                <img id="visual-owl-plush" class="visual-furniture interactive" data-passage="Bedroom Kylar Camera" title="Decide what to do with Kylar's camera" @src="'img/misc/icon/furniture/' + _owlplush.iconFile + '.png'">
+            <<else>>
+                <img id="visual-owl-plush" class="visual-furniture" title="Owl Plushie" @src="'img/misc/icon/furniture/' + _owlplush.iconFile + '.png'">
+            <</if>>
+        <</if>>
+
+        /* ANCHOR: Mirror Logic */
+        <<if $christmas is 1 and !$christmas_wraith and _wraithEvent>>
+            <img id="visual-mirror" class="visual-furniture interactive" data-passage="Christmas Mirror" title="You catch a strange glint in your mirror" src="img/misc/icon/mirrorhome.png">
+        <<elseif Time.hour is 3 and $hallucinations gte 2 and $daily.mirrorTentacles isnot 1 and $settings.tentaclesEnabled>>
+            <img id="visual-mirror" class="visual-furniture interactive" data-passage="Eerie Mirror" title="An eerie light spills from your mirror" src="img/misc/icon/mirrorhome.png">
+        <<else>>
+            <img id="visual-mirror" class="visual-furniture interactive" data-passage="Mirror" title="Mirror" src="img/misc/icon/mirrorhome.png">
+        <</if>>
+
+        /* ANCHOR: Decoration Logic */
+        <<if _deco>>
+            <<if _deco.name is "large bear plushie" and $bedroomUI.orphanage.largeBearPlushie is true>>
+                 <img id="visual-misc-deco" class="visual-furniture interactive" data-passage="Home Large Bear Plushie Cuddle" @title="_deco.name" @src="'img/misc/icon/furniture/' + _deco.iconFile + '.png'">
+            <<elseif ["banner", "calendar", "painting"].includes(_deco.type)>>
+                 <img id="wall-decorations" class="visual-furniture" @title="_deco.name" @src="'img/misc/icon/furniture/' + _deco.iconFile + '.png'">
+            <<else>>
+                 <img id="visual-misc-deco" class="visual-furniture" @title="_deco.name" @src="'img/misc/icon/furniture/' + _deco.iconFile + '.png'">
+            <</if>>
+        <</if>>
+        
+        /* ANCHOR: Plushie & Toy Logic */
+        <<if _plush and _plush.name is "collection of animal plushes">>
+            <img id="visual-special-plush" class="visual-furniture" title="Plushie Collection" src="img/furniture/tfplushes.png">
+        <<elseif _plush>>
+             <img id="visual-bed-decorations" class="visual-furniture" @title="_plush.name" @src="'img/misc/icon/furniture/' + _plush.iconFile + '.png'">
+        <</if>>
+        <<if playerHasSexToys()>>
+            <img id="visual-sex-toys" class="visual-furniture interactive" data-passage="Sextoys Inventory" title="Sex Toys" src="img/misc/icon/sexToys/bulletvibe.png">
+        <</if>>
+        <<if _sexMachine>>
+            <span id="visual-sex-machine" class="visual-furniture clothes-fleshy interactive" data-passage="Bedroom Machine" title="Fuck Machine">
+                <img src="img/misc/icon/sexToys/dildo_small.png">
+            </span>
+        <</if>>
+
+    </div>
+<</widget>>

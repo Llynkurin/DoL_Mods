@@ -1,0 +1,187 @@
+#bedroom-scene-container {
+    position: relative;
+    width: 400px;
+    height: 225px;
+    margin: 1em auto 2em auto;
+    border: 2px solid #333;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+    background-image: linear-gradient(#ffba9042 0%, #1c1424c9 76%, #665151 76%, #480d0d 80%, #795952f5 80%, #3a1e17), var(--wallpaper-bg, none);
+    background-repeat: no-repeat, repeat;
+    background-size: 100% 100%, auto;
+    background-position: center;
+    perspective: 500px;
+    transform-style: preserve-3d;
+}
+#bedroom-scene-container::before {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: -35px;
+    width: 122%;
+    height: 50%;
+    z-index: 1;
+    --floor-line-color: #562a5aff;
+    --floor-plank-color: #8a5a867d;
+    background-image: repeating-linear-gradient(90deg, var(--floor-line-color) 0 2px, var(--floor-plank-color) 2px 40px);
+    transform-origin: bottom;
+    transform: rotateX(75deg);
+}
+#bedroom-scene-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(255, 235, 215, 0.3) 0%, rgba(200, 160, 130, 0) 75%);
+    mix-blend-mode: soft-light;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* ANCHOR: Furniture Base Styles */
+.visual-furniture {
+    position: absolute;
+    display: block;
+    image-rendering: pixelated;
+}
+.visual-furniture.interactive {
+    cursor: pointer;
+    transition: transform 0.1s ease-out, filter 0.1s;
+}
+.visual-furniture img {
+    image-rendering: pixelated;
+}
+
+/* ANCHOR: Furniture Positioning */
+#visual-window {
+    top: 11%;
+    left: 83%;
+    transform: translateX(-50%);
+    width: 54px;
+    height: 120px;
+    border: 5px solid #000;
+}
+#visual-window canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+#visual-wardrobe {
+    bottom: 27%;
+    left: 4%;
+    transform: scale(2.5);
+    z-index: 2;
+}
+#visual-desk {
+    bottom: 22%;
+    left: 39%;
+    transform: scale(2.5);
+    z-index: 1;
+}
+#visual-chair {
+    bottom: 23%;
+    left: 39%;
+    transform: scale(2.5);
+    z-index: 2;
+}
+#visual-mirror {
+    bottom: 38%;
+    left: 22%;
+    transform: scale(2.5);
+    z-index: 2;
+}
+#visual-bed {
+    top: 69%;
+    right: 31%;
+    transform: scale(2.5);
+    z-index: 3;
+    filter: drop-shadow(-2px 0px 1px #37193a8a);
+}
+#visual-bed-decorations {
+    top: 54%;
+    left: 61%;
+    z-index: 5;
+    transform: scale(1.5);
+}
+#visual-poster {
+    top: 50%;
+    left: 53%;
+    transform: scale(1.5) rotate(-10deg);
+}
+#visual-special-plush {
+    top: 22%;
+    right: 64%;
+}
+#visual-radio {
+    top: 40%;
+    left: 8%;
+}
+#visual-misc-deco {
+    top: 58%;
+    right: 31%;
+    transform: scale(1.5);
+    z-index: 4;
+}
+#visual-owl-plush {
+    top: 41%;
+    left: 0%;
+    transform: scale(1.2);
+    z-index: 1;
+}
+#visual-windowsill-item {
+    top: 55%;
+    left: 78%;
+    transform: translateX(-50%);
+    z-index: 2;
+}
+#visual-sex-toys {
+    bottom: 12%;
+    left: 76%;
+    z-index: 3;
+    filter: drop-shadow(-1px 2px 1px #37193a);
+}
+#visual-sex-machine {
+    bottom: 22%;
+    left: 94%;
+    transform: scale(1.2) rotate(-90deg);
+    z-index: 3;
+animation: ani-girate 1.2s linear infinite alternate;
+filter: drop-shadow(-30px 5px 3px #0000005c);
+}
+	@keyframes ani-girate {
+			
+		0% {
+			transform:translateX(48px) scale(1.2) rotate(-90deg);
+		}
+		25% {
+			transform:translateX(0) scale(1.2) rotate(-90deg);
+		}
+		40% {
+			transform:translateX(26px) scale(1.2) rotate(-90deg);
+		}
+		55% {
+			transform:translateX(0) scale(1.2) rotate(-90deg);
+		}
+		65% {
+			transform:translateX(13px) scale(1.2) rotate(-90deg);
+		}
+		75% {
+			transform:translateX(0) scale(1.2) rotate(-90deg);
+		}
+		82% {
+			transform:translateX(6.5px) scale(1.2) rotate(-90deg);
+		}
+		87% {
+			transform:translateX(0) scale(1.2) rotate(-90deg);
+		}
+		93% {
+			transform:translateX(4px) scale(1.2) rotate(-90deg);
+		}
+		98% {
+			transform:translateX(0) scale(1.2) rotate(-90deg);
+		}
+		100% {
+			transform:translateX(0) scale(1.2) rotate(-90deg);
+		}
+	}

@@ -1,0 +1,9 @@
+[
+  {
+    "role": "passage",
+    "name": "Bedroom",
+    "method": "string",
+    "find": "You are in your bedroom.",
+    "replace": "You are in your bedroom.\n\n<<BedroomUI>>"
+  }
+]
