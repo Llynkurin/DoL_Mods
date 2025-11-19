@@ -1,5 +1,5 @@
 Latest Install links:
-[DoLlynk Injector](https://github.com/Llynkurin/DoL_Mods/blob/main/DoLLynk%20Injector/DoLlynk%20Injector-2.0.user.js)
+[DoLlynk Injector](https://github.com/Llynkurin/DoL_Mods/blob/main/DoLLynk%20Injector/DoLlynk%20Injector-2.0.user.js) |
 [SC2Modloader Compatability](https://github.com/Llynkurin/DoL_Mods/raw/refs/heads/main/DoLLynk%20Injector/DoLlynk+ModLoader-2.0.user.js)
   
   
