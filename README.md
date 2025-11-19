@@ -1,58 +1,59 @@
-### DoLlynk Injector
+# DoLlynk Injector
+It is a userscript injection system for *Degrees of Lewdity*. It exists because manually editing a 15MB HTML file is inefficient, chaotic, and frankly, terrifying. DoLlynk sits between your browser and the game, injecting code, styles, and assets into memory *before* the engine initializes. It is much cleaner.
 
-so this is my inline mod injector. It's based on the way Lyoko-Jeremie's sugarcube-2-ModLoader injects things via startup.
+Here is the documentation. I have tried to optimize it for maximum information density, if you see a typo or mistake please forgive me, I recently found out I have been living in a room with mold for ten years.
 
-The main idea is to have a simple, file-based system for mods where you can just drag and drop stuff without needing to package it all up when making edits or small mods.
+---
 
-#### How to Use
+## 01. Installation
 
-1.  You need a userscript manager like Tampermonkey or Violentmonkey.
-2.  Install the `DoLlynk Injector.user.js` file into the manager.
-3.  Load the game.
+1.  **Get a Manager:** **Tampermonkey** or **Violentmonkey** or anything you use to inject userscripts normally.
+2.  **Install the Script:**
+3.  **Verify Targets:**
+    *   The script is configured to match standard filenames (`Degrees of Lewdity.html`, `DoL.html`) and local files (`file:///`).
+    *   **Critical:** If you rename your game file to something specific like `Bail3y_0wn2_me_h3h3.html`, you *must* add that filename to the `@match` headers in the script settings, or the script will simply sleepy.
 
-The Mod Manager UI hooks into the game's **Advanced Settings** screen. You should see it pop up there.
+*Note: If you are on Android using JoiPlay, this will likely fail. JoiPlay is not a browser; it is an interpreter. Use a browser like Kiwi if you need mobile support.* I have also no ability currently to test how this runs on mobile. I have no phone. My phone committed self die on my pillow.
 
-Also, if a JS patch breaks the game and you can't get to the menu, I added a failsafe hotkey: `CTRL + Shift + M` will force the manager to open. I keep making this mistake so it was kinda necessary.
+---
 
-#### The Mod Manager UI
+## 02. Loading Mods
 
-It's pretty straightforward. You can drag and drop files to install them, or add them manually. You can also reorder mods and groups by dragging them around in the list. Changes require a reload to apply, it'll warn you.
+Once installed, a "Mods" button will appear in the game’s UI overlay `Options > Mods`. This opens the **DoLlynk Manager**.
 
-***
+### Installation
+You can drag and drop files into the dropzone. DoLlynk parses filenames to decide how to treat them.
 
-###  Making "Native" Mods 
+*   **Acceptable formats:** `.txt, .twee, .js, .css, .json5, .zip`
 
-The whole point of this was to make modding easier for me, so the native format is just... files. The injector figures out what to do based on the file extension and name.
+### The Asset System (Images)
+If a mod adds images, DoLlynk intercepts the browser's request for that image and serves a replacement file.
 
-You can drop these files in individually or group them in a folder. If you have `Meepmeep/mod.twee`, it will create a group called `Meepmeep`.
+*   **Web Mode:** You must import the `.zip` via the UI. The images live in your browser's IndexedDB storage.
+*   **Local Mode:** If you are playing a local HTML file, you can just point DoLlynk to a folder on your hard drive relative to the HTML file.
 
-#### File Naming Conventions
+After "staging" files, click **Install Staged**, and then **Apply & Reload**. The game *must* reload for script injections to take hold.
 
-*   `ModName.twee`: A Twee passage file. It'll get parsed and injected into the game's story data. Good for adding new passages or whole widgets.
-*   `ModName.css`: A CSS style file. This is injected directly into the document head to apply styles.
-*   `ModName.js`: A standard JavaScript file. This code runs at `runtime`, which means after the story is ready (`:storyready` event).
-*   `ModName.early.js`: An **early-load** JavaScript file. This is important. It runs *before* the game's own scripts are compiled. Use this for things that need to exist before the game starts, like dependencies or pre-compilation patches (though the `.modpatch` file is better for that).
-*   `ModName.modpatch.json5`: The unified patcher file. This is for making changes to existing game passages, widgets, or scripts without replacing the whole thing. It's the most powerful part.
+---
 
-***
+## 03. Creation: Unified Patcher
 
-### ANCHOR: The Unified Patcher (.modpatch.json5) 
+This is the technical part.
 
-I wanted a way to do lots of little changes without needing a ton of separate files. The `.modpatch.json5` file is an array of patch objects. It uses JSON5 so you can have comments and trailing commas.
+DoLlynk uses (`.modpatch.json5`) to modify the game code in small specified pieces without breaking compatibility with other mods or needing to ship full .html changes.
 
-Each object in the array needs a `role` to tell the injector what it's patching.
+You define an array of objects. Each object has a `role`.
 
-#### `role: "passage"`
+### A. `role: "passage"`
+Use this to modify SugarCube passages (text, links, logic).
 
-This patches the content of a game passage.
+*   **`name`**: The exact passage title (e.g., `"Bedroom"`).
+*   **`method`**: `"string"` (exact match) or `"regex"` (regular expression).
+*   **`find`**: What to look for (Text).
+*   **`replace`**: What to put there (Text).
+*   **`findFile` / `replaceFile`**: Alternatively, filenames to read the content from.
 
-*   `name`: The exact name of the passage to patch (e.g., `"Bedroom"`).
-*   `method`: Can be `"string"` for simple text replacement or `"regex"` for regular expressions.
-*   `find`: The string or regex to search for.
-*   `replace`: What to replace it with.
-
-**Example (from the Bedroom UI mod):**
-
+**Example 1:** *Injecting a UI widget into the Bedroom.*
 ```json5
 {
   "role": "passage",
@@ -62,54 +63,70 @@ This patches the content of a game passage.
   "replace": "You are in your bedroom.\n\n<<BedroomUI>>"
 }
 ```
- `<<BedroomUI>>` being a custom widget
 
-#### `role: "widget"`
-
-This wraps an existing widget to add code before or after it. It doesn't replace the widget, it renames the original and creates a new one with your additions.
-
-*   `name`: The name of the widget (e.g., `"passout"`).
-*   `method`: `"prefix"` or `"prepend"` to add before, `"postfix"` or `"append"` to add after.
-*   `replace`: The code to inject. Usually a call to another widget.
-
-**Example:**
-
+**Example 2:** *Using external files for complex replaces.*
+Use `.txt` files in your mod folder to handle large blocks of code without worrying about JSON escaping.
 ```json5
 {
-  "role": "widget",
-  "name": "passout",
-  "method": "prefix",
-  "replace": "<<CustomPassoutWidget>>"
+    "role": "passage",
+    "name": "Hairdressers Widgets",
+    "method": "string",
+    "findFile": "find_hairdresser.txt",
+    "replaceFile": "hairoptions.txt"
 }
 ```
+**`find_hairdresser.txt`** (Must match game code *exactly*, including indentation):
+```
+						<<option "Low Ombré" "low-ombre">>
+						<<option "High Ombré" "high-ombre">>
+						<<option "Split" "split">>
+						<<option "Face-framing highlights" "face-frame">>
+```
+**`hairoptions.txt`** (Your replacement code):
+```
+<<option "Low Ombré" "low-ombre">>
+<<option "High Ombré" "high-ombre">>
+<<option "Split" "split">>
+<<option "Face-framing highlights" "face-frame">>
+<<option "Scene" "scene-fade">>
+<<option "Checker" "checker-fade">>
+<<option "Wink" "wink-color">>
+```
 
-#### `role: "script"`
+### B. `role: "script"`
+⚠ **Warning:** This patches the main `twine-user-script` (the core Javascript) *before* compilation. This means you may experience game breaking. Test on a copy of the game and backup your save/mods before editing these.
 
-This patches the main `twine-user-script` file before it gets compiled by the browser. It's powerful but also dangerous so always do this on a copy.
+*   **`find`**: The string/regex to locate in the raw JS source.
+*   **`replace`**: The new code.
+*   **`name`**:
+    *   **Compatibility Note:** If you want your mod to work with **ModLoader** as well, you *must* set this to the filename from the source repo (e.g., `renderer.js`).
 
-*   `find`: The string or regex to find in the game's JavaScript code.
-*   `replace`: The code to replace it with.
+**Safety Mechanism:** DoLlynk has a "Generality Threshold." If your `find` string matches more than **5 times**, the patch is skipped. This prevents you from accidentally replacing something common (like `var i = 0`) and getting nothing but red error boxes or solid grey.
 
-To prevent you from accidentally breaking everything, I added a "generality threshold." If your `find` string matches more than 5 times in the game's code, the patch will be skipped and you'll get a warning in the console. Trust me, it helps prevent replacing something like `var ` everywhere.
-
-**Example:**
-
+**Example:** *Redirecting a function call.*
 ```json5
 {
   "role": "script",
-  "name": "JS patch to redirect hair filter call", //name here does not call to a specific file or function currently but maybe later it can
+  "name": "renderer.js", // Just a label for the console logs
   "method": "string",
   "find": "options.filters.hair = createHairColourGradient(",
   "replace": "options.filters.hair = window.HGP_createHairColourGradient("
 }
 ```
 
-***
+---
 
-### boot.json & Compatibility
+## 04. Best Practices
 
-I know a lot of mods use the `boot.json` format, so I added support for it. You can drag-and-drop a `.zip` file containing a `boot.json` and the injector will try to parse it.
+1.  **File Extensions Matter:**
+    *   `modFile.js` runs *after* the story loads (Runtime).
+    *   `modFile.early.js` runs *before* the story initializes. Use `.early.js` if you are defining variables that the game needs on startup (like `setup.clothes`).
+    *   To get a solid idea of where these points are you can open the console (F12) and filter for "DoLlynk".
+2.  **Namespace Everything:**
+    *   Do not write `function update()`. You will overwrite a game function and crash.
+    *   Write `window.modFile = { update: function() ... }`. Keep your logic contained.
+3.  **Asset Paths:**
+    *   In your code, use standard paths: `<img src="img/my_mod/icon.png">`.
+    *   DoLlynk will catch `img/` and route it to your zip/folder transparently.
 
-It's mostly for compatibility with externally made mods. The injector translates the `boot.json` instructions into its own "native" mod formats in the background when you import it. For new projects with this injector, it's easier to just use the file naming conventions directly.
-
-anyway that's about it. I haven't tested every single edge case since I'm selfishly making this. ( ´ ▽ ` )ﾉ
+If the system behaves erratically, open the console (F12) and type `DoLlynk.state`. It will tell you if it is confused.
