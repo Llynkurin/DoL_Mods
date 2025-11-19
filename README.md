@@ -1,4 +1,11 @@
+  * [01. Installation](#01-installation)
+  * [02. Loading Mods](#02-loading-mods)
+  * [03. Patch Creation](#03-patch-creation)
+  * [04. Best Practices](#04-best-practices)
+  ---
+
 # DoLlynk Injector
+
 It is a userscript injection system for *Degrees of Lewdity*. It exists because manually editing a 15MB HTML file is inefficient, chaotic, and frankly, terrifying. DoLlynk sits between your browser and the game, injecting code, styles, and assets into memory *before* the engine initializes. It is much cleaner.
 
 Here is the documentation. I have tried to optimize it for maximum information density, if you see a typo or mistake please forgive me, I recently found out I have been living in a room with mold for ten years.
@@ -36,7 +43,7 @@ After "staging" files, click **Install Staged**, and then **Apply & Reload**. Th
 
 ---
 
-## 03. Creation: Unified Patcher
+## 03. Patch Creation
 
 This is the technical part.
 
@@ -122,10 +129,7 @@ Use `.txt` files in your mod folder to handle large blocks of code without worry
     *   `modFile.js` runs *after* the story loads (Runtime).
     *   `modFile.early.js` runs *before* the story initializes. Use `.early.js` if you are defining variables that the game needs on startup (like `setup.clothes`).
     *   To get a solid idea of where these points are you can open the console (F12) and filter for "DoLlynk".
-2.  **Namespace Everything:**
-    *   Do not write `function update()`. You will overwrite a game function and crash.
-    *   Write `window.modFile = { update: function() ... }`. Keep your logic contained.
-3.  **Asset Paths:**
+2.  **Asset Paths:**
     *   In your code, use standard paths: `<img src="img/my_mod/icon.png">`.
     *   DoLlynk will catch `img/` and route it to your zip/folder transparently.
 
