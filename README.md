@@ -133,4 +133,4 @@ Use `.txt` files in your mod folder to handle large blocks of code without worry
     *   In your code, use standard paths: `<img src="img/my_mod/icon.png">`.
     *   DoLlynk will catch `img/` and route it to your zip/folder transparently.
 
-If the system behaves erratically, open the console (F12) and type `DoLlynk.state`. It will tell you if it is confused.
+If the system behaves erratically, open the console (F12) and type `DoLlynk.state`. It will tell you if it is confused. `Ctrl+Shift+M` can load in the tab forcefull if it goes missing.
