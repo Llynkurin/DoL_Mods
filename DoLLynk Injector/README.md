@@ -11,7 +11,7 @@ Latest Install links:
 
 # DoLlynk Injector
 
-It is a userscript injection system for *Degrees of Lewdity*. It exists because manually editing a 15MB HTML file is inefficient, chaotic, and frankly, terrifying. DoLlynk sits between your browser and the game, injecting code, styles, and assets into memory *before* the engine initializes. It is much cleaner.
+It is a userscript injection system for *Degrees of Lewdity*. It exists because manually editing a 150MB HTML file is inefficient, chaotic, and frankly, terrifying. DoLlynk sits between your browser and the game, injecting code, styles, and assets into memory *before* the engine initializes. It is much cleaner.
 
 Here is the documentation. I have tried to optimize it for maximum information density, if you see a typo or mistake please forgive me, I recently found out I have been living in a room with mold for ten years.
 
