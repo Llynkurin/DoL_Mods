@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name          DoLlynk+ModLoader
 // @namespace     https://github.com/Llynkurin
-// @version       2.3
-// @description   A universal zip handler and compatibility layer for DoLlynk Injector.
-// @author        Llynkurin
+// @version       2.6.9
+// @description   A universal zip handler and compatibility layer for DoLlynk Injector with Modloader.
+// @author        Llynkurin with inspiration from the community
 // @match         file:///*Degrees%20of%20Lewity*.html*
 // @match         file:///*Degrees*of*Lewdity*.html*
 // @match         file:///*DoL*.html*
@@ -12,439 +12,401 @@
 // @grant         none
 // @require       https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
 // @require       https://cdn.jsdelivr.net/npm/json5@2.2.3/dist/index.min.js
-// @run-at        document-end
+// @run-at        document-start
 // ==/UserScript==
 
 (function() {
-	'use strict';
+    'use strict';
 
-	/* ANCHOR: Initialization */
-	function initializeCompatLayer() {
-		if (!window.DoLlynk || !window.DoLlynk.UI) {
-			console.error('[DoLlynk Compat] Core injector not found or not ready. This script will not run.');
-			return;
-		}
-		console.log('[DoLlynk Compat] Core injector found, applying universal zip handler...');
+    const U_WINDOW = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    const LOG_TAG = '[🪡Suite]';
 
-		const {
-			state,
-			UI,
-			ModActions,
-			FileHandler,
-			Storage,
-			Assets,
-			ENV
-		} = window.DoLlynk;
+    /* ANCHOR: JSZip Patch */
+    if (U_WINDOW.JSZip && !U_WINDOW.JSZip._suite_patched) {
+        U_WINDOW.JSZip._suite_patched = true;
+        const ensureOpts = (args) => { if (args.length === 1) args.push({}); if (!args[1]) args[1] = {}; return args; };
+        const patch = (proto, method) => {
+            if (!proto[method]) return;
+            const orig = proto[method];
+            proto[method] = function(...args) { return orig.apply(this, ensureOpts(args)); };
+        };
+        patch(U_WINDOW.JSZip.prototype, 'loadAsync');
+        patch(U_WINDOW.JSZip, 'loadAsync');
+    }
 
-		/* ANCHOR: Download Helper (Non-Sandboxed) */
-		const _triggerDownload = (blob, filename) => {
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = filename;
-			document.body.appendChild(a);
-			a.click();
-			setTimeout(() => {
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-			}, 100);
-		};
+    /* ANCHOR: Suite Logic */
+    const Suite = {
+        Utils: {
+            download(blob, filename) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                Object.assign(a, { href: url, download: filename });
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+            },
+            getTypeAndName(filename) {
+                return U_WINDOW.DoLlynk.ModActions._getTypeAndName(filename);
+            },
+            getModFileName(mod) {
+                return U_WINDOW.DoLlynk.ModActions._getFileNameFromMod(mod);
+            }
+        },
 
-		const Compat = {
-			/* ANCHOR: boot.json Import Logic */
-			async _processBootData(bootContent, groupName, zip) {
-				const createdMods = [];
-				const bootData = JSON5.parse(bootContent);
-				const modName = bootData.name || groupName;
+        /* ANCHOR: ModLoader Compatibility */
+        ModLoader: {
+            async parseBoot(bootContent, groupName, zip) {
+                const boot = JSON5.parse(bootContent);
+                const modName = boot.name || groupName;
+                const mods = [];
 
-				const fileLists = [{
-						type: 'css',
-						lists: ['styleFileList'],
-						early: true
-					},
-					{
-						type: 'js',
-						lists: ['scriptFileList_inject_early', 'scriptFileList_earlyload'],
-						early: true
-					},
-					{
-						type: 'js',
-						lists: ['scriptFileList_preload', 'scriptFileList'],
-						early: false
-					},
-					{
-						type: 'twee',
-						lists: ['tweeFileList'],
-						early: true
-					},
-				];
+                // 1. Process Files
+                const mappings = [
+                    { type: 'css', lists: ['styleFileList'], early: true },
+                    { type: 'js', lists: ['scriptFileList_inject_early', 'scriptFileList_earlyload'], early: true },
+                    { type: 'js', lists: ['scriptFileList_preload', 'scriptFileList'], early: false },
+                    { type: 'twee', lists: ['tweeFileList'], early: true },
+                ];
 
-				for (const {
-						type,
-						lists,
-						early
-					}
-					of fileLists) {
-					for (const listName of lists) {
-						if (Array.isArray(bootData[listName])) {
-							for (const filePath of bootData[listName]) {
-								const file = zip.file(new RegExp(`^${filePath.replace(/\\/g, '/')}$`, 'i'))[0];
-								if (!file) {
-									console.warn(`[DoLlynk Compat] File not found in zip for ${modName}: ${filePath}`);
-									continue;
-								}
-								const code = await file.async('text');
-								const {
-									name
-								} = ModActions._getTypeAndName(file.name.split('/').pop());
-								createdMods.push({
-									name,
-									groupName: modName,
-									type,
-									code,
-									earlyLoad: early,
-									enabled: true
-								});
-							}
-						}
-					}
-				}
+                for (const { type, lists, early } of mappings) {
+                    for (const list of lists) {
+                        if (!Array.isArray(boot[list])) continue;
+                        for (const path of boot[list]) {
+                            const file = zip.file(new RegExp(`^${path.replace(/\\/g, '/')}$`, 'i'))[0];
+                            if (!file) continue;
+                            const code = await file.async('text');
+                            const { name } = Suite.Utils.getTypeAndName(file.name.split('/').pop());
+                            mods.push({ name, groupName: modName, type, code, earlyLoad: early, enabled: true });
+                        }
+                    }
+                }
 
-				const passagePatches = [];
-				const scriptPatches = [];
-				if (Array.isArray(bootData.addonPlugin)) {
-					for (const addon of bootData.addonPlugin) {
-						if (addon.addonName === 'TweeReplacerAddon' && Array.isArray(addon.params)) {
-							passagePatches.push(...addon.params.map(p => ({
-								role: 'passage',
-								name: p.passage,
-								method: p.isRegex || !!p.findRegex ? 'regex' : 'string',
-								find: p.findRegex || p.findString,
-								replace: p.replace
-							})));
-						}
-						if (addon.addonName === 'ReplacePatcherAddon' && addon.params) {
-							if (Array.isArray(addon.params.twee)) {
-								passagePatches.push(...addon.params.twee.map(p => ({
-									role: 'passage',
-									name: p.passageName,
-									method: 'string',
-									find: p.from,
-									replace: p.to
-								})));
-							}
-							if (Array.isArray(addon.params.js)) {
-								scriptPatches.push(...addon.params.js.map(p => ({
-									role: 'script',
-									method: 'string',
-									find: p.from,
-									replace: p.to
-								})));
-							}
-						}
-					}
-				}
+                // 2. Process Patches
+                const patches = { passage: [], script: [] };
+                if (Array.isArray(boot.addonPlugin)) {
+                    boot.addonPlugin.forEach(addon => {
+                        if (addon.addonName === 'TweeReplacerAddon' && Array.isArray(addon.params)) {
+                            patches.passage.push(...addon.params.map(p => ({
+                                role: 'passage', name: p.passage,
+                                method: p.isRegex || p.findRegex ? 'regex' : 'string',
+                                find: p.findRegex || p.findString, replace: p.replace
+                            })));
+                        }
+                        if (addon.addonName === 'ReplacePatcherAddon' && addon.params) {
+                            if (addon.params.twee) patches.passage.push(...addon.params.twee.map(p => ({
+                                role: 'passage', name: p.passageName, method: 'string', find: p.from, replace: p.to
+                            })));
+                            if (addon.params.js) patches.script.push(...addon.params.js.map(p => ({
+                                role: 'script', method: 'string', find: p.from, replace: p.to
+                            })));
+                        }
+                    });
+                }
 
-				if (passagePatches.length > 0 || scriptPatches.length > 0) {
-					createdMods.push({
-						name: `${modName}-patches`,
-						groupName: modName,
-						type: 'unified-patch',
-						code: JSON.stringify([...passagePatches, ...scriptPatches], null, 2),
-						earlyLoad: true,
-						enabled: true
-					});
-				}
-				return createdMods;
-			},
+                if (patches.passage.length || patches.script.length) {
+                    mods.push({
+                        name: `${modName}-patches`, groupName: modName, type: 'unified-patch',
+                        code: JSON.stringify([...patches.passage, ...patches.script], null, 2),
+                        earlyLoad: true, enabled: true
+                    });
+                }
+                return mods;
+            },
 
-			/* ANCHOR: Standard Zip  */
-			async _installStandardZip(file, zip) {
-				const rootGroup = file.name.replace(/\.zip$/i, '');
-				if (!ENV.isFileProtocol && state.settings.assetsEnabled) {
-					const count = await this._importAssetsFromZip(zip, rootGroup);
-					if (count > 0) console.log(`[✓ DoLlynk Compat] Imported ${count} assets from ${file.name}.`);
-				}
+            generateBoot(mods, groupName) {
+                const boot = {
+                    name: groupName, version: "1.0.0",
+                    styleFileList: [], scriptFileList: [], scriptFileList_earlyload: [], tweeFileList: [],
+                    addonPlugin: [{ addonName: "TweeReplacerAddon", params: [] }, { addonName: "ReplacePatcherAddon", params: { js: [], twee: [] } }]
+                };
 
-				for (const path in zip.files) {
-					const entry = zip.files[path];
-					if (entry.dir || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(entry.name)) continue;
+                mods.forEach(mod => {
+                    const relativePath = (mod.groupName.length > groupName.length ? mod.groupName.substring(groupName.length + 1) + '/' : '') + Suite.Utils.getModFileName(mod);
 
-					const pathParts = path.split('/').filter(p => p);
-					const fileName = pathParts.pop();
-					const groupName = [rootGroup, ...pathParts].join('/');
-					const {
-						type,
-						name,
-						earlyLoad
-					} = ModActions._getTypeAndName(fileName);
+                    if (mod.type === 'css') boot.styleFileList.push(relativePath);
+                    else if (mod.type === 'js') (mod.earlyLoad ? boot.scriptFileList_earlyload : boot.scriptFileList).push(relativePath);
+                    else if (mod.type === 'twee') boot.tweeFileList.push(relativePath);
+                    else if (mod.type === 'unified-patch') {
+                        try {
+                            const pData = JSON5.parse(mod.code);
+                            pData.forEach(p => {
+                                if (p.role === 'passage') {
+                                    const param = { passage: p.name, replace: p.replace, isRegex: p.method === 'regex' };
+                                    if (p.method === 'regex') param.findRegex = p.find; else param.findString = p.find;
+                                    boot.addonPlugin[0].params.push(param);
+                                } else if (p.role === 'script') {
+                                    boot.addonPlugin[1].params.js.push({ fileName: "game-script", from: p.find, to: p.replace });
+                                }
+                            });
+                        } catch (e) {}
+                    }
+                });
 
-					if (!type) continue;
-					const code = await entry.async('text');
-					const finalEarly = earlyLoad || ['twee', 'css', 'unified-patch'].includes(type);
-					state.mods.push({
-						name,
-						groupName,
-						type,
-						code,
-						earlyLoad: finalEarly,
-						enabled: true,
-						id: crypto.randomUUID(),
-						order: state.mods.length
-					});
-				}
-			},
+                boot.addonPlugin = boot.addonPlugin.filter(p => p.params.length > 0 || p.params.js?.length > 0);
+                if (!boot.addonPlugin.length) delete boot.addonPlugin;
+                return JSON.stringify(boot, null, 2);
+            }
+        },
 
-			/* ANCHOR: Asset Import from Zip */
-			async _importAssetsFromZip(zip, groupId) {
-				const imageFiles = Object.values(zip.files).filter(f => !f.dir && /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.name));
-				for (const file of imageFiles) {
-					await Assets.DB.put(Assets._normalizePath(file.name), await file.async('blob'), groupId);
-				}
-				if (imageFiles.length > 0) {
-					const groupData = await Assets.DB.getByGroupId(groupId);
-					Assets.Groups.addOrUpdate({
-						id: groupId,
-						fileCount: groupData.length,
-						size: groupData.reduce((acc, f) => acc + f.size, 0),
-						type: 'mod-linked'
-					});
-				}
-				return imageFiles.length;
-			},
+        /* ANCHOR: Backup System */
+        Backup: {
+            async exportAll(mods) {
+                const zip = new JSZip();
+                const manifest = [];
+                mods.forEach(mod => {
+                    const fileName = Suite.Utils.getModFileName(mod);
+                    const fullPath = mod.groupName ? `${mod.groupName}/${fileName}` : fileName;
+                    zip.file(fullPath, mod.code);
+                    manifest.push({
+                        id: mod.id, name: mod.name, groupName: mod.groupName, type: mod.type,
+                        earlyLoad: mod.earlyLoad, enabled: mod.enabled, order: mod.order, path: fullPath
+                    });
+                });
+                zip.file('dollynk_manifest.json5', JSON5.stringify(manifest, null, 2));
+                const blob = await zip.generateAsync({ type: 'blob' });
+                Suite.Utils.download(blob, `dollynk_full_${new Date().toISOString().slice(0, 10)}.zip`);
+            },
+            async importAll(file, UI, Storage, state) {
+                const zip = await JSZip.loadAsync(file);
+                const manFile = zip.file('dollynk_manifest.json5');
+                if (!manFile) throw new Error("Invalid Backup: No manifest found.");
 
-			/* ANCHOR: boot.json Export Logic */
-			_generateBootJson(mods, groupName) {
-				const boot = mods.reduce((acc, mod) => {
-					const filePath = (mod.groupName.length > groupName.length ? mod.groupName.substring(groupName.length + 1) + '/' : '') + ModActions._getFileNameFromMod(mod);
-					switch (mod.type) {
-						case 'css':
-							acc.styleFileList.push(filePath);
-							break;
-						case 'js':
-							(mod.earlyLoad ? acc.scriptFileList_earlyload : acc.scriptFileList).push(filePath);
-							break;
-						case 'twee':
-							acc.tweeFileList.push(filePath);
-							break;
-						case 'unified-patch':
-							try {
-								const patches = JSON5.parse(mod.code);
-								for (const p of patches) {
-									if (p.role === 'passage') {
-										const replacerParam = {
-											passage: p.name,
-											replace: p.replace,
-											isRegex: p.method === 'regex'
-										};
-										if (p.method === 'regex') replacerParam.findRegex = p.find;
-										else replacerParam.findString = p.find;
-										acc.addonPlugin[0].params.push(replacerParam);
-									} else if (p.role === 'script') {
-										acc.addonPlugin[1].params.js.push({
-											fileName: "game-script",
-											from: p.find,
-											to: p.replace
-										});
-									}
-								}
-							} catch (e) {
-								console.error(`[DoLlynk Compat] Error parsing patch file ${mod.name} for boot.json export.`, e);
-							}
-							break;
-					}
-					return acc;
-				}, {
-					name: groupName,
-					version: "1.0.0",
-					styleFileList: [],
-					scriptFileList: [],
-					scriptFileList_earlyload: [],
-					tweeFileList: [],
-					addonPlugin: [{
-							addonName: "TweeReplacerAddon",
-							params: []
-						},
-						{
-							addonName: "ReplacePatcherAddon",
-							params: {
-								js: [],
-								twee: []
-							}
-						}
-					]
-				});
-				boot.addonPlugin = boot.addonPlugin.filter(p => p.params.length > 0 || (p.params.js && p.params.js.length > 0));
-				if (boot.addonPlugin.length === 0) delete boot.addonPlugin;
-				return JSON.stringify(boot, null, 2);
-			}
-		};
+                const manifest = JSON5.parse(await manFile.async('text'));
+                const newMods = [];
+                for (const meta of manifest) {
+                    const entry = zip.file(meta.path);
+                    if (entry) newMods.push({ ...meta, code: await entry.async('text') });
+                }
 
-		/* ANCHOR: Hooks and Overrides */
+                if (newMods.length) {
+                    state.mods = newMods.sort((a, b) => a.order - b.order);
+                    state.needsReload = true;
+                    await Storage.saveMods();
+                    UI.updateModList();
+                    alert(`Restored ${newMods.length} mods. Reload required.`);
+                }
+            }
+        },
 
-		const originalRenderItem = UI._renderItem.bind(UI);
-		UI._renderItem = function(item, depth, buffer) {
-			const tempBuffer = [];
-			originalRenderItem(item, depth, tempBuffer);
-			let html = tempBuffer.join('').replace(/data-action="export-group" data-group="([^"]+)" title="Export Group">JSON5/g, 'data-action="export-group" data-group="$1" title="Export as Zip">ZIP');
-			buffer.push(html);
-		};
+        /* ANCHOR: Asset Handling */
+        Assets: {
+            async importFromZip(zip, groupId, AssetsDB) {
+                const images = Object.values(zip.files).filter(f => !f.dir && /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.name));
+                // Load blobs in parallel to speed up I/O
+                const blobs = await Promise.all(images.map(f => f.async('blob').then(b => ({ name: f.name, blob: b }))));
 
-		FileHandler.installStaged = async function() {
-			if (!state.stagedFiles.length) return;
-			UI.showLoader('Installing mods (Zip Handler)...');
+                for (const { name, blob } of blobs) {
+                    await AssetsDB.put(U_WINDOW.DoLlynk.Assets._normalizePath(name), blob, groupId);
+                }
 
-			const nonZipFiles = [];
-			let modsAdded = false;
+                if (images.length > 0) {
+                    const groupData = await AssetsDB.getByGroupId(groupId);
+                    U_WINDOW.DoLlynk.Assets.Groups.addOrUpdate({
+                        id: groupId, fileCount: groupData.length,
+                        size: groupData.reduce((acc, f) => acc + f.size, 0), type: 'mod-linked'
+                    });
+                }
+                return images.length;
+            },
+            applyPatches(Assets) {
+                if (Assets.FileInterceptor) {
+                    const _resolve = Assets.FileInterceptor.resolveAssetPath;
+                    Assets.FileInterceptor.resolveAssetPath = function(path, cb) {
+                        if (typeof path !== 'string' || path.startsWith('data:') || path.startsWith('blob:')) return cb(path);
+                        const hook = U_WINDOW.modSC2DataManager?.getHtmlImageLoaderHook?.();
+                        if (hook?.map?.has(path)) return cb(path);
+                        try { return _resolve.call(this, path, cb); }
+                        catch (e) { console.warn(LOG_TAG, e); return cb(path); }
+                    };
+                }
+                if (Assets.get) {
+                    const _get = Assets.get.bind(Assets);
+                    Assets.get = async function(path) {
+                        return (typeof path === 'string' && (path.startsWith('blob:') || path.startsWith('data:')))
+                            ? null : _get(path);
+                    };
+                }
+            }
+        },
 
-			for (const file of state.stagedFiles) {
-				if (file.name.toLowerCase().endsWith('.zip')) {
-					try {
-						const zip = await JSZip.loadAsync(file);
-						const bootFile = zip.file(/boot\.json5?$/i)[0];
-						if (bootFile) {
-							const bootContent = await bootFile.async('text');
-							const bootData = JSON5.parse(bootContent);
-							const groupName = bootData.name || file.name.replace(/\.zip$/i, '');
+        /* ANCHOR: UI Integration */
+        UI: {
+            injectGlobalButtons(UI) {
+                const exportBtn = document.querySelector('[data-action="export-all"]');
+                const importBtn = document.querySelector('[data-action="import-all"]');
 
-							console.log(`[DoLlynk Compat] Found boot.json in ${file.name}, using ModLoader import for group "${groupName}".`);
+                if (exportBtn && !document.querySelector('[data-action="export-all-zip"]')) {
+                    const b = document.createElement('button');
+                    Object.assign(b, { textContent: 'Export (ZIP)', title: 'Full Backup' });
+                    b.dataset.action = 'export-all-zip';
+                    exportBtn.after(b); exportBtn.after(document.createTextNode(' '));
+                }
+                if (importBtn && !document.querySelector('[data-action="import-all-zip"]')) {
+                    const b = document.createElement('button');
+                    Object.assign(b, { textContent: 'Import (ZIP)', title: 'Restore Backup' });
+                    b.dataset.action = 'import-all-zip';
+                    importBtn.after(b); importBtn.after(document.createTextNode(' '));
+                }
+            },
+            injectGroupButtons(html) {
+                return html.replace(
+                    /(data-action="export-group" data-group="([^"]+)" title="Export Group">JSON5<\/button>)/g,
+                    '$1 <button class="mod-btn" data-action="export-group-zip" data-group="$2" title="Export as Zip">ZIP</button>'
+                );
+            }
+        }
+    };
 
-							const modsFromBoot = await Compat._processBootData(bootContent, groupName, zip);
-							if (modsFromBoot.length > 0) {
-								modsFromBoot.forEach(mod => state.mods.push({
-									...mod,
-									id: crypto.randomUUID(),
-									order: state.mods.length
-								}));
-								modsAdded = true;
-							}
+    /* ANCHOR: Initialization */
+    function init() {
+        if (!U_WINDOW.DoLlynk?.Assets) return setTimeout(init, 50);
+        console.log(`${LOG_TAG} Initializing...`);
+        const DL = U_WINDOW.DoLlynk;
+        Suite.Assets.applyPatches(DL.Assets);
 
-							if (!ENV.isFileProtocol && state.settings.assetsEnabled) {
-								const count = await Compat._importAssetsFromZip(zip, groupName);
-								if (count > 0) console.log(`[✓ DoLlynk Compat] Imported ${count} assets from ${file.name}.`);
-							}
-						} else {
-							console.log(`[DoLlynk Compat] No boot.json in ${file.name}, using standard zip import.`);
-							await Compat._installStandardZip(file, zip);
-							modsAdded = true;
-						}
-					} catch (e) {
-						console.error(`[DoLlynk Compat] Failed to process zip ${file.name}`, e);
-						alert(`Failed to process zip ${file.name}. See console for details.`);
-					}
-				} else {
-					nonZipFiles.push(file);
-				}
-			}
+        // Hook UI
+        if (DL.UI) {
+            const _initHTML = DL.UI.initializeInjectedHTML;
+            DL.UI.initializeInjectedHTML = function(c) { _initHTML.call(this, c); Suite.UI.injectGlobalButtons(DL.UI); };
+            const _renderItem = DL.UI._renderItem;
+            DL.UI._renderItem = function(item, depth, buf) {
+                const tmp = [];
+                _renderItem.call(this, item, depth, tmp);
+                buf.push(Suite.UI.injectGroupButtons(tmp.join('')));
+            };
+            if (document.getElementById('mod-manager-wrapper')) Suite.UI.injectGlobalButtons(DL.UI);
+        }
+        if (DL.Events) {
+            DL.Events._handlers['export-all-zip'] = () => {
+                const btn = document.querySelector('[data-action="export-all-zip"]');
+                if (btn) btn.textContent = '...';
+                setTimeout(() => Suite.Backup.exportAll(DL.state.mods).finally(() => { if (btn) btn.textContent = 'Export (ZIP)'; }), 10);
+            };
 
-			if (nonZipFiles.length > 0) {
-				for (const file of nonZipFiles) {
-					if (/\.(json5?)$/i.test(file.name)) {
-						try {
-							const imported = JSON5.parse(await file.text());
-							if (Array.isArray(imported)) {
-								const newMods = imported.filter(imp => !state.mods.some(ex => ex.id === imp.id));
-								if (newMods.length > 0) {
-									newMods.forEach(mod => state.mods.push({
-										...mod,
-										order: state.mods.length
-									}));
-									modsAdded = true;
-								}
-							}
-						} catch (e) {
-							alert(`Failed to import ${file.name}: ${e.message}`);
-						}
-					} else {
-						const {
-							type,
-							name,
-							earlyLoad
-						} = ModActions._getTypeAndName(file.name);
-						if (type) {
-							const code = await file.text();
-							const finalEarly = earlyLoad || ['twee', 'css', 'unified-patch'].includes(type);
-							state.mods.push({
-								name,
-								groupName: null,
-								type,
-								code,
-								earlyLoad: finalEarly,
-								enabled: true,
-								id: crypto.randomUUID(),
-								order: state.mods.length
-							});
-							modsAdded = true;
-						}
-					}
-				}
-			}
+            DL.Events._handlers['import-all-zip'] = () => {
+                const input = document.createElement('input');
+                input.type = 'file'; input.accept = '.zip';
+                input.onchange = e => {
+                    if (e.target.files[0] && confirm('Replace ALL mods with backup?')) {
+                        DL.UI.showLoader('Restoring...');
+                        Suite.Backup.importAll(e.target.files[0], DL.UI, DL.Storage, DL.state)
+                            .catch(err => alert(err.message))
+                            .finally(() => DL.UI.hideLoader());
+                    }
+                };
+                input.click();
+            };
 
-			state.stagedFiles = [];
-			if (modsAdded) {
-				state.needsReload = true;
-				await Storage.saveMods();
-				UI.resetForm();
-				UI.updateModList();
-			}
-			UI.hideLoader();
-		};
+            DL.Events._handlers['export-group-zip'] = async (_, gid, e) => {
+                const mods = DL.state.mods.filter(m => m.groupName === gid || m.groupName?.startsWith(gid + '/'));
+                if (!mods.length) return alert('Empty group.');
+                const useML = confirm(`Export "${gid}" as ModLoader?\n(Cancel = Standard)`);
+                const btn = e.target; btn.textContent = '...'; btn.disabled = true;
 
-		ModActions.exportGroup = async function(groupId, buttonElement) {
-			const mods = state.mods.filter(m => m.groupName === groupId || m.groupName?.startsWith(groupId + '/'));
-			if (!mods.length) return alert('No mods found in this group to export.');
+                try {
+                    const zip = new JSZip();
+                    const gBase = gid.split('/').pop();
+                    mods.forEach(m => {
+                        const rel = m.groupName.length > gid.length ? m.groupName.substring(gid.length + 1) + '/' : '';
+                        zip.file(rel + Suite.Utils.getModFileName(m), m.code);
+                    });
 
-			const exportAsModLoader = confirm(`Export group "${groupId}" as a ModLoader-compatible zip?\n\n(Click 'Cancel' to export as a standard zip without a boot.json file.)`);
+                    if (useML) {
+                        zip.file('boot.json', Suite.ModLoader.generateBoot(mods, gBase));
+                        Suite.Utils.download(await zip.generateAsync({ type: 'blob' }), `${gBase}.modloader.zip`);
+                    } else {
+                        Suite.Utils.download(await zip.generateAsync({ type: 'blob' }), `${gBase}.standard.zip`);
+                    }
+                } catch (err) { console.error(err); alert('Zip Failed'); }
+                finally { btn.textContent = 'ZIP'; btn.disabled = false; }
+            };
+        }
 
-			buttonElement.textContent = '...';
-			buttonElement.disabled = true;
+        // Hook FileHandler
+        if (DL.FileHandler) {
+            DL.FileHandler.browse = () => {
+                const i = document.createElement('input');
+                i.type = 'file'; i.multiple = true; i.accept = '.js,.css,.twee,.json,.json5,.zip,.txt';
+                i.onchange = e => DL.FileHandler.stage(Array.from(e.target.files));
+                i.click();
+            };
 
-			try {
-				const zip = new JSZip();
-				const groupBaseName = groupId.split('/').pop();
+            DL.FileHandler.installStaged = async () => {
+                if (!DL.state.stagedFiles.length) return;
+                DL.UI.showLoader('Installing (Suite)...');
+                let updated = false;
 
-				for (const mod of mods) {
-					const relativePath = mod.groupName.length > groupId.length ? mod.groupName.substring(groupId.length + 1) + '/' : '';
-					zip.file(relativePath + ModActions._getFileNameFromMod(mod), mod.code);
-				}
+                try {
+                    for (const file of DL.state.stagedFiles) {
+                        if (file.name.toLowerCase().endsWith('.zip')) {
+                            const zip = await JSZip.loadAsync(file);
 
-				if (exportAsModLoader) {
-					const bootJsonContent = Compat._generateBootJson(mods, groupBaseName);
-					zip.file('boot.json', bootJsonContent);
-					_triggerDownload(await zip.generateAsync({
-						type: 'blob'
-					}), `${groupBaseName}.modloader.zip`);
-				} else {
-					_triggerDownload(await zip.generateAsync({
-						type: 'blob'
-					}), `${groupBaseName}.standard.zip`);
-				}
-			} catch (err) {
-				console.error(`[DoLlynk Compat] Failed to generate ZIP for ${groupId}`, err);
-				alert(`Failed to generate ZIP for ${groupId}. See console for details.`);
-			} finally {
-				buttonElement.textContent = 'ZIP';
-				buttonElement.disabled = false;
-			}
-		};
+                            if (zip.file('dollynk_manifest.json5')) {
+                                if (confirm(`Restore Full Backup "${file.name}"?`)) {
+                                    await Suite.Backup.importAll(file, DL.UI, DL.Storage, DL.state);
+                                    return;
+                                }
+                            }
 
-		FileHandler.browse = function() {
-			const i = document.createElement('input');
-			i.type = 'file';
-			i.multiple = true;
-			i.accept = '.js,.css,.twee,.json,.json5,.zip,.txt';
-			i.onchange = e => FileHandler.stage(Array.from(e.target.files));
-			i.click();
-		};
-	}
+                            // ModLoader or Standard
+                            const bootFile = zip.file(/boot\.json5?$/i)[0];
+                            const gName = bootFile ? (JSON5.parse(await bootFile.async('text')).name || file.name.replace(/\.zip$/i, ''))
+                                                   : file.name.replace(/\.zip$/i, '');
 
-	function waitForDoLlynk() {
-		if (window.DoLlynk && window.DoLlynk.UI && window.DoLlynk.FileHandler) {
-			initializeCompatLayer();
-		} else {
-			setTimeout(waitForDoLlynk, 100);
-		}
-	}
+                            const extracted = bootFile
+                                ? await Suite.ModLoader.parseBoot(await bootFile.async('text'), gName, zip)
+                                : await (async () => {
+                                    const mods = [];
+                                    for (const p in zip.files) {
+                                        if (zip.files[p].dir || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(p)) continue;
+                                        const { type, name, earlyLoad } = Suite.Utils.getTypeAndName(p.split('/').pop());
+                                        if (type) mods.push({
+                                            name, type, code: await zip.files[p].async('text'),
+                                            groupName: gName, earlyLoad: earlyLoad || ['twee','css','unified-patch'].includes(type)
+                                        });
+                                    }
+                                    return mods;
+                                })();
 
-	waitForDoLlynk();
+                            if (extracted.length) {
+                                extracted.forEach(m => DL.state.mods.push({ ...m, id: crypto.randomUUID(), order: DL.state.mods.length, enabled: true }));
+                                updated = true;
+                            }
+                            if (!DL.ENV.isFileProtocol && DL.state.settings.assetsEnabled) {
+                                await Suite.Assets.importFromZip(zip, gName, DL.Assets.DB);
+                            }
+                        } else {
+                            if (/\.json5?(\.txt)?$/i.test(file.name) && !file.name.includes('.modpatch.')) {
+                                const content = await file.text();
+                                const json = JSON5.parse(content);
+                                if (Array.isArray(json) && json.every(i => i.type)) {
+                                    json.filter(i => !DL.state.mods.some(m => m.id === i.id)).forEach(m => DL.state.mods.push({...m, order: DL.state.mods.length}));
+                                    updated = true; continue;
+                                } else if (Array.isArray(json)) {
+                                     const { name } = Suite.Utils.getTypeAndName(file.name);
+                                     DL.state.mods.push({ id: crypto.randomUUID(), name, type: 'unified-patch', code: content, earlyLoad: true, enabled: true, order: DL.state.mods.length });
+                                     updated = true; continue;
+                                }
+                            }
+                            // Standard Fallback
+                            const { type, name, earlyLoad } = Suite.Utils.getTypeAndName(file.name);
+                            if (type) {
+                                DL.state.mods.push({
+                                    id: crypto.randomUUID(), name, groupName: null, type,
+                                    code: await file.text(), earlyLoad: earlyLoad || ['twee','css','unified-patch'].includes(type), enabled: true, order: DL.state.mods.length
+                                });
+                                updated = true;
+                            }
+                        }
+                    }
+                } catch (e) { console.error(LOG_TAG, e); alert('Install Error: ' + e.message); }
+
+                DL.state.stagedFiles = [];
+                if (updated) { DL.state.needsReload = true; await DL.Storage.saveMods(); DL.UI.resetForm(); DL.UI.updateModList(); }
+                DL.UI.hideLoader();
+            };
+        }
+    }
+
+    init();
 })();
